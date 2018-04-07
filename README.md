@@ -32,4 +32,4 @@ It will tell some of the hot topics, which are on the top of the list (specified
 
 
 #### Related Topics
-It will tell some hot topics related to a keyword (specified by the user `as a slot`)
+It will tell some hot topics related to a keyword (specified by the user `as a slot`)	

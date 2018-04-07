@@ -50,7 +50,7 @@ def on_intent(event):
 	elif intent_name == "AMAZON.HelpIntent":
 		return do_help()
 	elif intent_name == "AMAZON.StopIntent":
-		return do_stop()
+		return do_stop(attributes)
 	elif intent_name == "AMAZON.CancelIntent":
 		return do_stop()
 	else:
@@ -61,7 +61,7 @@ def on_intent(event):
 def GetTrendingTopics(request, attributes):
 	try:
 		pytrend = TrendReq()
-		trending_searches_df = pytrend.trending_searches()
+		trending_searches_df = pytrend.trending_searches(pn='p1')
 	except Exception as e:
 		print(type(e))
 		print(e.args)
@@ -69,27 +69,38 @@ def GetTrendingTopics(request, attributes):
 	else:
 		print("\nTotal number of topics ::", len(trending_searches_df))
 
-		outputSpeech = "Here are some trending topics ... "
-		cardContent = ""
-		extra = ""
+		# outputSpeech = "Here are some trending topics ... "
+		# cardContent = ""
+		# extra = ""
 		length = 2
+
+		titles = []
+		extra = ""
 		for i in range(0, length + 1):
 			title, articleTitle, article = getCurrentTopic(trending_searches_df, attributes)
 			if articleTitle == "EMPTY":
-				return response_plain_text("Woooow, you have gone through all of our trending topics. Would you like to look for them again? Or you can always come later.",
-				 True, attributes, "I'm out of topics", "I have this problem, I'm very sorry.",
-				 "I can tell you again, if you want."
+				return response_plain_text(
+					"Woooow, you have gone through all of our trending topics. Would you like to look for them again? Or you can always come later.",
+					True,
+					attributes,
+					"I'm out of topics",
+					"I have this problem, I'm very sorry.",
+				 	"I can tell you again, if you want."
 				)
-			if i < length - 1:
-				outputSpeech += articleTitle + ", "
-				cardContent += "\n" + articleTitle
-			elif i == length - 1:
-				outputSpeech += " and " + articleTitle 
-				cardContent += " and\n" + articleTitle
+			elif i < length:
+				titles.append(articleTitle)
 			else:
 				extra = title
 
-		return response_plain_text(outputSpeech, False, attributes, "Trending Topics", cardContent, "Would you like to hear about " + extra + "?")
+		outputSpeech, cardContent = getOSandCC(titles, length)
+		return response_plain_text(
+				"Here are some trending topics, " + outputSpeech,
+				False,
+				attributes,
+				"Trending Topics",
+				cardContent,
+				"Would you like to hear about " + extra + "?"
+			)
 
 
 
@@ -100,14 +111,12 @@ def getCurrentTopic(trending_searches_df, attributes):
 	current_topic = trending_searches_df.iloc[[index]]
 	attributes = setIndex(index, attributes)
 
-	printOnConsole(current_topic)
-
 	title = current_topic['title'].values[0]
 	articleTitle = BeautifulSoup(current_topic['newsArticlesList'].values[0][0]['title'], "lxml").text
 	article = BeautifulSoup(current_topic['newsArticlesList'].values[0][0]['snippet'], "lxml").text
 
-	if articleTitle[-1] != '.':
-		articleTitle += '.'
+	if articleTitle[-1] == '.':
+		articleTitle = articleTitle[:-1]
 
 	return [title, articleTitle, article]
 
@@ -154,25 +163,33 @@ def GetTopCharts(request, i = 0):
 		    print(e.args)
 		    return response_plain_text("Sorry, I think I'm not feeling well today. I can't answer that", True, {}, "Our apologies", "Sorry, for the inconvenience", "You can try again if you want.")
 	else:
-		outputSpeech = "Here are some top " + keyword + " ... "
-		cardContent = ""
-		i, length = 1,10
+		length = 5
+		titles = []
 		for title in top_charts_df['title']:
-			if i >= length:
-				break;
-			if (i < len(top_charts_df['title']) - 1) or (i < length - 1):
-				outputSpeech += title + ", "
-				cardContent += "\n" + title + ","
-			else:
-				outputSpeech += " and " + title 
-				cardContent += " and\n" + title
-			i += 1
-		return response_plain_text(outputSpeech, False, {}, "Top charts of " + keyword, cardContent, "Would you like to hear about " + getRandomKeyword())
+			titles.append(title)
+
+		outputSpeech, cardContent = getOSandCC(titles, length)
+
+		return response_plain_text(
+				"Here are some top " + keyword + " ... " + outputSpeech,
+				False,
+				{},
+				"Top charts of " + keyword,
+				cardContent,
+				"Would you like to hear about " + getRandomKeyword()
+			)
    		
 
 def getKeywordError():
 	Messages = ["Sorry, the word you asked for is not available."]
-	return response_plain_text(getRandomKeyword(Messages), False, {}, "Keyword error", "Cannot find the keyword to search for.", "Would you like to hear the available topics?")
+	return response_plain_text(
+			getRandomKeyword(Messages),
+			False,
+			{},
+			"Keyword error",
+			"Cannot find the keyword to search for.",
+			"Would you like to hear the available topics?"
+		)
 
 
 def getDate(intent, slot):
@@ -190,18 +207,16 @@ def GetSuggestionsIntent(request):
 		if temp not in keys:
 			keys.append(temp)
 
-	outputSpeech = ""
-	cardContent = ""
-	i = 0
-	for key in keys:
-		if i < len(keys) - 1:
-			outputSpeech += key + ", "
-			cardContent +=  "\n" + key + ","
-		else:
-			outputSpeech += " and " + key 
-			cardContent += " and\n" + key
-		i += 1
-	return response_plain_text("Here are some suggestions ... " + outputSpeech, False, {}, "Suggestions", outputSpeech, "What can I do for you?")
+	outputSpeech, cardContent = getOSandCC(keys, len(keys))
+
+	return response_plain_text(
+			"Here are some suggestions ... " + outputSpeech,
+			False,
+			{},
+			"Suggestions",
+			outputSpeech,
+			"What can I do for you?"
+		)
 
 
 def GetRelatedTopics(request):
@@ -215,50 +230,84 @@ def GetRelatedTopics(request):
 		except Exception as e:
 			print(type(e))
 			print(e.args)
-			return response_plain_text("Google is not very helpful sometimes, this is so embarrasing", True, attributes, "Our apologies", "Sorry for the inconvenience", "What can I do for you?")
+			return response_plain_text(
+					"Google is not very helpful sometimes, this is so embarrasing",
+					True, 
+					attributes,
+					"Our apologies",
+					"Sorry for the inconvenience",
+					"What can I do for you?"
+				)
 		else:
 			topics_df = df.sort_values(by='value', ascending=False)
-
-			outputSpeech = "Here are the related topics corresponding to your search ... "
-			cardContent = ""
-			extra = ""
-			length = 10
+			
+			topics = []
 			for i, row in topics_df.iterrows():
-				if i < length - 1:
-					outputSpeech += row['title'] + ", "
-					cardContent += "\n" + row['title']
-				elif i == length - 1:
-					outputSpeech += "and " + row['title']
-					cardContent += "\n" + row['title']
-				else:
-					extra += row['title']
-					break;
+				topics.append(row['title'])
 
-			return response_plain_text(outputSpeech, True, {}, "Hot topics related to - " + keyword, cardContent, "Would you like to hear about " + extra)
+			length = 5
+			outputSpeech, cardContent, extra = getOSandCC(topics, length, True)
+
+			return response_plain_text(
+					"Here are the related topics related to " + keyword + " ... " + outputSpeech,
+					False,
+					{},
+					"Hot topics related to - " + keyword,
+					cardContent,
+					"Would you like to hear about " + extra
+				)
 
 	else:
 		return keywordRequired()
 
 
+def getOSandCC(lines, length, extraRequired = False):
+	outputSpeech = ""
+	cardContent = ""
+	extra = ""
+	e = 1 if extraRequired else 0 # e = int(extraRequired)
+	i = 0
+	for line in lines:
+		if i < length:
+			outputSpeech += line.capitalize()
+			cardContent += line.capitalize()
+			if i < length - 2:
+				outputSpeech += ", "
+				cardContent += ",\n"
+			elif i == length - 2:
+				outputSpeech += " and "
+				cardContent += ", and\n"
+			else: 
+				outputSpeech += "."
+				if extraRequired == False:
+					break
+		else:
+			extra += line
+			break
+		i += 1
+
+	if extraRequired :
+		return outputSpeech, cardContent, extra
+	else:
+		return outputSpeech, cardContent
+
+
 def keywordRequired():
-	return response_plain_text("The topic you searched for is not so clear.", False, {}, "Try these", "1. Try changing your sentences\n2. Try changing the search word(s).", "I can suggest you something if you want?")
-
-
-def printOnConsole(current_topic):
-	print("Date :: ", u'{0}'.format(current_topic['date'].values[0]))
-	print("Hotness Level :: %f" % decimal.Decimal(current_topic['hotnessLevel'].values[0]))
-	print("Title :: %s" % current_topic['title'].values[0])
-	print("Article Title :: %s" % BeautifulSoup(current_topic['newsArticlesList'].values[0][0]['title'], "lxml").text)
-	print("Article :: %s" % BeautifulSoup(current_topic['newsArticlesList'].values[0][0]['snippet'], "lxml").text)
-	print("Related Search list :: ", current_topic['relatedSearchesList'].values[0])
-	print("\n")
+	return response_plain_text(
+			"The topic you searched for is not so clear.",
+			False,
+			{},
+			"Try these",
+			"1. Try changing your sentences\n2. Try changing the search word(s).",
+			"I can suggest you something if you want?"
+		)
 
 
 def getRandom(messages):
-    return messages[random.randint(0, len(messages) - 1)] 
+    return messages[random.randint(0, len(messages))] 
 
 
-def response_plain_text(output, endsession, attributes, title, cardContent, repromt):
+def response_plain_text(output, endsession, attributes, title, cardContent, repromt = ""):
     print(output + "\n")
     """ create a simple json plain text response  """
     return {
@@ -287,17 +336,19 @@ def response_plain_text(output, endsession, attributes, title, cardContent, repr
 
 def do_help():
 	Messages = [
-		"How can I help you?"
+		"You can say 'what is trending'.",
+		"You can ask for some top charts.",
+		"You can ask for related topics."
 	]
-	return getRandom(Messages)
+	return response_plain_text(getRandom(Messages), True, {}, "Bye!", "I hope to see you again.")
 
-def do_stop():
-	global sessionAttributes
+def do_stop(attributes):
 	attributes['INDEX'] = {}
 	Messages = [
 		'Good Bye!!'
 	]
-	return getRandom(Messages)
+	return response_plain_text(getRandom(Messages), True, {}, "Bye!", "I hope to see you again.") 
+	
 	
 
 # event['request']['intent']['slots']['SLOT_NAME']['value']
