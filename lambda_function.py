@@ -14,6 +14,8 @@ def lambda_handler(event, context):
 		return on_intent(event)
 	elif event['request']['type'] == 'SessionEndedRequest':
 		return on_session_ended()
+
+
 # To get the value of slot  -- SLOT_NAME
 # event['request']['intent']['slots']['SLOT_NAME']['value']
 def on_launch(event, context):
@@ -22,7 +24,7 @@ def on_launch(event, context):
 	}
 	return response_plain_text(getWelcomeMessage(), False, attributes, "Welcome", getWelcomeMessage(), "How can I help you?")
 
-outputSpeech = "Hello"
+
 def on_intent(event):
 	state = ""
 	index = 0
@@ -43,6 +45,8 @@ def on_intent(event):
 		return GetTopCharts(request)
 	elif intent_name == 'GetRelatedTopics':
 		return GetRelatedTopics(request)
+	elif intent_name == 'GetSuggestionsIntent':
+		return GetSuggestionsIntent(request)
 	elif intent_name == "AMAZON.HelpIntent":
 		return do_help()
 	elif intent_name == "AMAZON.StopIntent":
@@ -55,24 +59,38 @@ def on_intent(event):
 
 
 def GetTrendingTopics(request, attributes):
-	pytrend = TrendReq()
-	trending_searches_df = pytrend.trending_searches()
-	print("\nTotal number of topics ::", len(trending_searches_df))
+	try:
+		pytrend = TrendReq()
+		trending_searches_df = pytrend.trending_searches()
+	except Exception as e:
+		print(type(e))
+		print(e.args)
+		return response_plain_text("Google is not very helpful sometimes, this is so embarrasing", True, attributes, "Our apologies", "Sorry for the inconvenience")
+	else:
+		print("\nTotal number of topics ::", len(trending_searches_df))
 
-	outputSpeech = "Here are some trending topics ... "
-	cardContent = ""
-	for i in range(0, 2):
-		title, articleTitle, article = getCurrentTopic(trending_searches_df, attributes)
-		if articleTitle == "EMPTY":
-			return response_plain_text("Woooow, you have gone through all of our trending topics. Would you like to look for them again? Or you can always come later.",
-			 True, attributes, "I'm out of topics", "I have this problem, I'm very sorry.",
-			 "I can tell you again, if you want."
-			)
-		outputSpeech += (articleTitle + " ")
-		cardContent += articleTitle + "\n" 
+		outputSpeech = "Here are some trending topics ... "
+		cardContent = ""
+		extra = ""
+		length = 2
+		for i in range(0, length + 1):
+			title, articleTitle, article = getCurrentTopic(trending_searches_df, attributes)
+			if articleTitle == "EMPTY":
+				return response_plain_text("Woooow, you have gone through all of our trending topics. Would you like to look for them again? Or you can always come later.",
+				 True, attributes, "I'm out of topics", "I have this problem, I'm very sorry.",
+				 "I can tell you again, if you want."
+				)
+			if i < length - 1:
+				outputSpeech += articleTitle + ", "
+				cardContent += "\n" + articleTitle
+			elif i == length - 1:
+				outputSpeech += " and " + articleTitle 
+				cardContent += " and\n" + articleTitle
+			else:
+				extra = title
 
+		return response_plain_text(outputSpeech, False, attributes, "Trending Topics", cardContent, "Would you like to hear about " + extra + "?")
 
-	return response_plain_text(outputSpeech, False, attributes, "Trending Topics", cardContent, "Would you like to hear more?")
 
 
 def getCurrentTopic(trending_searches_df, attributes):
@@ -138,12 +156,16 @@ def GetTopCharts(request, i = 0):
 	else:
 		outputSpeech = "Here are some top " + keyword + " ... "
 		cardContent = ""
-		i = 1
+		i, length = 1,10
 		for title in top_charts_df['title']:
-			if i >= 10:
+			if i >= length:
 				break;
-			outputSpeech += title + ", "
-			cardContent += title + "\n"
+			if (i < len(top_charts_df['title']) - 1) or (i < length - 1):
+				outputSpeech += title + ", "
+				cardContent += "\n" + title + ","
+			else:
+				outputSpeech += " and " + title 
+				cardContent += " and\n" + title
 			i += 1
 		return response_plain_text(outputSpeech, False, {}, "Top charts of " + keyword, cardContent, "Would you like to hear about " + getRandomKeyword())
    		
@@ -161,59 +183,25 @@ def getDate(intent, slot):
 	return int(slot)
 
 
-def getCid(intent, keyword):
-	slot = getSlotValue(intent, keyword)
-	if slot != -1:
-		slot = slot.lower()
-		slot = slot.split(' ')
-		slot = ''.join(slot)
-		if slot == 'games' or slot == 'game':
-			return 'games', slot
-		elif slot == 'actor' or slot == 'actors':
-			return 'actors', slot
-		elif slot == 'politicians' or slot == 'leaders':
-			return 'politicians', slot
-		elif slot == 'scientists':
-			return 'scientists', slot
-		elif slot == 'cars' or slot == 'sportscars':
-			return 'sports_cars', slot
-		elif slot == 'serials' or slot == 'seasons' or slot == 'realityshows':
-			return 'reality_shows', slot
-		elif slot == 'food' or slot == 'foods' :
-			return 'foods', slot
-		elif slot == 'books' or slot == 'novels' or slot == 'comics':
-			return 'books', slot
-		elif slot == 'authors' or slot == 'writers':
-			return 'authors', slot
-		elif slot == 'songs' or slot == 'pop':
-			return 'songs', slot
-		elif slot == 'dogs' or slot == 'dogbreeds':
-			return 'dog_breeds', slot
-		elif slot == 'athletes':
-			return 'athletes', slot
-		elif slot == 'people' :
-			return 'people', slot
-		else :
-			return -1, -1
+def GetSuggestionsIntent(request):
+	keys = []
+	while len(keys) < 3:
+		temp = getRandomKeyword()
+		if temp not in keys:
+			keys.append(temp)
 
-
-def getRandomKeyword():
-	Keywords = [
-		'games',
-		'actors',
-		'politicians',
-		'scientists',
-		'sports cars',
-		'reality shows',
-		'foods',
-		'books',
-		'authors',
-		'songs',
-		'dog breeds',
-		'athletes',
-		'people'
-	]
-	return getRandom(Keywords)
+	outputSpeech = ""
+	cardContent = ""
+	i = 0
+	for key in keys:
+		if i < len(keys) - 1:
+			outputSpeech += key + ", "
+			cardContent +=  "\n" + key + ","
+		else:
+			outputSpeech += " and " + key 
+			cardContent += " and\n" + key
+		i += 1
+	return response_plain_text("Here are some suggestions ... " + outputSpeech, False, {}, "Suggestions", outputSpeech, "What can I do for you?")
 
 
 def GetRelatedTopics(request):
@@ -221,24 +209,40 @@ def GetRelatedTopics(request):
 	keyword = getSlotValue(request['intent'], 'KEYWORD')
 
 	if(keyword != -1):
-		pytrend.build_payload(kw_list=[keyword])
-		df = pytrend.related_topics()[keyword]
-		topics_df = df.sort_values(by='value', ascending=False)
+		try:
+			pytrend.build_payload(kw_list=[keyword])
+			df = pytrend.related_topics()[keyword]
+		except Exception as e:
+			print(type(e))
+			print(e.args)
+			return response_plain_text("Google is not very helpful sometimes, this is so embarrasing", True, attributes, "Our apologies", "Sorry for the inconvenience", "What can I do for you?")
+		else:
+			topics_df = df.sort_values(by='value', ascending=False)
 
-		outputSpeech = "Here are the related topics corresponding to your search ... "
-		cardContent = ""
-		for index, row in topics_df.iterrows():
-			outputSpeech += row['title'] + ", "
-			cardContent += row['title'] + "\n"
+			outputSpeech = "Here are the related topics corresponding to your search ... "
+			cardContent = ""
+			extra = ""
+			length = 10
+			for i, row in topics_df.iterrows():
+				if i < length - 1:
+					outputSpeech += row['title'] + ", "
+					cardContent += "\n" + row['title']
+				elif i == length - 1:
+					outputSpeech += "and " + row['title']
+					cardContent += "\n" + row['title']
+				else:
+					extra += row['title']
+					break;
 
-		return response_plain_text(outputSpeech, True, {}, "Hot topics related to - " + keyword, cardContent, "Would you like to hear about .. ?")
+			return response_plain_text(outputSpeech, True, {}, "Hot topics related to - " + keyword, cardContent, "Would you like to hear about " + extra)
 
 	else:
 		return keywordRequired()
 
 
 def keywordRequired():
-	return "Keyword is required for this function to work."
+	return response_plain_text("The topic you searched for is not so clear.", False, {}, "Try these", "1. Try changing your sentences\n2. Try changing the search word(s).", "I can suggest you something if you want?")
+
 
 def printOnConsole(current_topic):
 	print("Date :: ", u'{0}'.format(current_topic['date'].values[0]))
@@ -250,32 +254,12 @@ def printOnConsole(current_topic):
 	print("\n")
 
 
-def getRelatedSearchList(current_topic):
-	current_topic['relatedSearchesList']
-
-
-def getWelcomeMessage():
-	WelcomeMessages = [
-	    "Welcome to Protone Dictionary!",
-	    "This is Protone Dictionary!",
-	    "Hello there, How may I help you?",
-	    "Welcome to Protone Dictionary, What should I do for you today?",
-	    "Welcome, What can I do for you?",
-	    "Hello there, shall we get started?",
-	    "Welcome, What should I look for today?",
-	    "Welcome, did you find any new words?",
-	    "Welcome, hope on to the world of words",
-	    "I'm soo happy to see you."
-	    "Hello, nice to meet you.",
-	    "Hello, let's find meaning of some interesting words."
-	]
-	return getRandom(WelcomeMessages)
-
 def getRandom(messages):
     return messages[random.randint(0, len(messages) - 1)] 
 
+
 def response_plain_text(output, endsession, attributes, title, cardContent, repromt):
-    print(output)
+    print(output + "\n")
     """ create a simple json plain text response  """
     return {
         'version'   : '1.0',
@@ -324,3 +308,77 @@ def getSlotValue(intent, slot):
 				return intent['slots'][slot]['value']
 
 	return -1
+
+
+def getCid(intent, keyword):
+	slot = getSlotValue(intent, keyword)
+	if slot != -1:
+		slot = slot.lower()
+		slot = slot.split(' ')
+		slot = ''.join(slot)
+		if slot == 'games' or slot == 'game':
+			return 'games', 'games'
+		elif slot == 'actor' or slot == 'actors':
+			return 'actors', 'actors'
+		elif slot == 'politicians' or slot == 'leaders':
+			return 'politicians', slot
+		elif slot == 'scientists':
+			return 'scientists', slot
+		elif slot == 'cars' or slot == 'sportscars':
+			return 'sports_cars', slot
+		elif slot == 'serials' or slot == 'seasons' or slot == 'realityshows':
+			return 'reality_shows', slot
+		elif slot == 'food' or slot == 'foods' :
+			return 'foods', 'foods'
+		elif slot == 'books' or slot == 'novels' or slot == 'comics':
+			return 'books', slot
+		elif slot == 'authors' or slot == 'writers':
+			return 'authors', slot
+		elif slot == 'songs' or slot == 'pop':
+			return 'songs', slot
+		elif slot == 'dogs' or slot == 'dogbreeds':
+			return 'dog_breeds', slot
+		elif slot == 'athletes':
+			return 'athletes', slot
+		elif slot == 'people' :
+			return 'people', slot
+		else :
+			return -1, -1
+
+
+def getWelcomeMessage():
+	WelcomeMessages = [
+	    "Welcome to Protone Dictionary!",
+	    "This is Protone Dictionary!",
+	    "Hello there, How may I help you?",
+	    "Welcome to Protone Dictionary, What should I do for you today?",
+	    "Welcome, What can I do for you?",
+	    "Hello there, shall we get started?",
+	    "Welcome, What should I look for today?",
+	    "Welcome, did you find any new words?",
+	    "Welcome, hope on to the world of words",
+	    "I'm soo happy to see you."
+	    "Hello, nice to meet you.",
+	    "Hello, let's find meaning of some interesting words."
+	]
+	return getRandom(WelcomeMessages)
+
+
+def getRandomKeyword():
+	Keywords = [
+		'games',
+		'actors',
+		'politicians',
+		'scientists',
+		'sports cars',
+		'reality shows',
+		'foods',
+		'books',
+		'authors',
+		'songs',
+		'dog breeds',
+		'athletes',
+		'people'
+	]
+	return getRandom(Keywords)
+
