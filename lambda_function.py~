@@ -85,7 +85,7 @@ def GetTrendingTopics(request, attributes):
 			"Google is not very helpful sometimes, this is so embarrasing.",
 			"Sorry for the inconvenience.",
 			"This is so embarrasing that I can't help.",
-			"Something wrong happened!",
+			"Something happened!",
 			"There was an error fetching the details.",
 			"There was a problem retrieving the data.",
 			"Nobody is perfect, atleast I tried.",
@@ -135,16 +135,15 @@ def GetTrendingTopics(request, attributes):
 			else:
 				extra = title
 
-		outputSpeech, cardContent = getOSandCC(titles, length, trending = True)
+		outputSpeech, cardContent = getOSandCC(titles, length)
 		TrueMessages = [
 			"Here are some trending topics, ",
 			"I've got something, ",
 			"This is what I got, ",
-			"Yes I've got something for you, ",
+			"Yes I've something for you, ",
 			"Maybe you will find this interesting, "
 		]
 		temp = getRandom(TrueMessages)
-		"""
 		return response_plain_text(
 				temp + outputSpeech,
 				False,
@@ -153,15 +152,7 @@ def GetTrendingTopics(request, attributes):
 				cardContent,
 				"Would you like to hear about " + extra + "?"
 			)
-		"""
-		return response_ssml(
-				temp + outputSpeech,
-				False,
-				attributes,
-				"Trending Topics",
-				cardContent,
-				"Would you like to hear about " + extra + "?"
-			)
+
 
 
 def getCurrentTopic(trending_searches_df, attributes):
@@ -195,20 +186,15 @@ def setIndex(index, attributes):
 
 def GetTopCharts(request, i = 0):
 	pytrend = TrendReq()
+	keyword = getSlotValue(request['intent'], 'WORD')
 	cid, keyword = getCid(request['intent'], 'WORD')
-	print("\ncid ::", cid, "\nKeyword ::", keyword)
 
 	# Validations
 	if cid == -1:
-		if keyword == -1:
-			return keywordRequired()
-		else:
-			return getKeywordError(keyword)
+		return getKeywordError()
 	date = getDate(request['intent'], 'DATE')
 	if date == -1:
 		date = int(datetime.datetime.now().strftime ("%Y"))
-		
-		"""
 	if cid == -1:
 		FalseMessages = [
 			"Please provide proper top charts topic.",
@@ -218,12 +204,11 @@ def GetTopCharts(request, i = 0):
 			"Don't have anything related to this."
 		]
 		temp = getRandom(FalseMessages)
-		return response_plain_text(temp + " Would you like to hear about the topics which I support?",
+		return response_plain_text(temp,
 		False,
 		"Incorrect slot value",
 		temp,
 		"Would you like to hear about " + getRandomKeyword())
-		"""
 
 	try:
 		date = date - i
@@ -235,12 +220,11 @@ def GetTopCharts(request, i = 0):
 		else:
 			print(type(e))
 			print(e.args)
-			print("\ncid ::", cid, "\nDate ::", date)
 			ApologyMessages = [
 				"Sorry, I think I'm not feeling well today. I can't answer that.",
 				"Sorry for the inconvenience.",
 				"I am not getting what you are looking for.",
-				"Something wrong happened!",
+				"Something happened!",
 				"There was an error fetching the details.",
 				"There was a problem retrieving the data.",
 				"Nobody is perfect, atleast I tried.",
@@ -260,7 +244,7 @@ def GetTopCharts(request, i = 0):
 			"Here are some top ",
 			"Here are the best  ",
 			"This is what I've got related to ",
-			"Yes I've got something for you regarding trending ",
+			"Yes I've something for you regarding trending ",
 			"Best in the category of "
 		]
 		temp = getRandom(TopChartsMessages)
@@ -274,16 +258,16 @@ def GetTopCharts(request, i = 0):
 			)
 		
 
-def getKeywordError(keyword):
+def getKeywordError():
 	ErrorMessages = [
-		"Sorry, information about " + keyword + " is not available.",
-		"I am not getting anything for " + keyword,
-		"Something wrong happened!, I can't find anything for " + keyword,
-		"Cannot find anything for " + keyword + ".",
-		"There was an error fetching the details about " + keyword,
-		"There was a problem retrieving the data. I do not support the keyword " + keyword,
-		"Nobody is perfect, atleast I tried. I'm sorry the keyword " + keyword + " is not supported yet",
-		"Sorry for such an absurd behaviour. I can't find anything for " + keyword,
+		"Sorry, the word you asked for is not available.",
+		"I am not getting what you are looking for.",
+		"Something happened!",
+		"Cannot find the keyword you searched for.",
+		"There was an error fetching the details.",
+		"There was a problem retrieving the data.",
+		"Nobody is perfect, atleast I tried.",
+		"Sorry for such an absurd behaviour. I can't help.",
 		"Don't have anything related to this."
 	]
 	temp = getRandom(ErrorMessages)
@@ -293,7 +277,7 @@ def getKeywordError(keyword):
 			{},
 			"Keyword error",
 			"Cannot find the keyword you searched for.",
-			"Would you like to hear about the topics which I support?"
+			"Would you like to hear the available topics?"
 		)
 
 
@@ -346,7 +330,7 @@ def GetRelatedTopics(request):
 				"Google is not very helpful sometimes, this is so embarrasing.",
 				"Sorry for the inconvenience.",
 				"This is so embarrasing that I can't help.",
-				"Something wrong happened!",
+				"Something happened!",
 				"There was an error fetching the details.",
 				"There was a problem retrieving the data.",
 				"Nobody is perfect, atleast I tried.",
@@ -374,8 +358,6 @@ def GetRelatedTopics(request):
 			for i, row in topics_df.iterrows():
 				topics.append(row['title'])
 
-			random.shuffle(topics)
-
 			length = 5
 			outputSpeech, cardContent, extra = getOSandCC(topics, length, True)
 			AnswerMessages = [
@@ -384,7 +366,7 @@ def GetRelatedTopics(request):
 				"Here are some top topics related to ",
 				"Here are the best topics related to ",
 				"This is what I've got related to ",
-				"Yes, I've got something for you regarding ",
+				"Yes I've something for you regarding ",
 				"Best topics in the category of "
 			]
 			temp = getRandom(AnswerMessages)
@@ -401,7 +383,7 @@ def GetRelatedTopics(request):
 		return keywordRequired()
 
 
-def getOSandCC(lines, length, extraRequired = False, trending = False):
+def getOSandCC(lines, length, extraRequired = False):
 	outputSpeech = ""
 	cardContent = ""
 	extra = ""
@@ -413,13 +395,9 @@ def getOSandCC(lines, length, extraRequired = False, trending = False):
 			cardContent += line.capitalize()
 			if i < length - 2:
 				outputSpeech += ", "
-				if trending == True:
-					outputSpeech += " <break time='0.3s'/> "
 				cardContent += ",\n"
 			elif i == length - 2:
-				outputSpeech += ", and "
-				if trending == True:
-					outputSpeech += " <break time='0.3s'/> "
+				outputSpeech += " and "
 				cardContent += ", and\n"
 			else: 
 				outputSpeech += "."
@@ -439,11 +417,14 @@ def getOSandCC(lines, length, extraRequired = False, trending = False):
 def keywordRequired():
 	ReqMessages = [
 		"The topic you searched for is not so clear.",
+		"Something happened!",
+		"Nobody is perfect, atleast I tried.",
 		"Sorry, the word you asked for is not available.",
 		"I am not getting what you are looking for.",
+		"Something happened!",
 		"Cannot find the keyword you searched for.",
-		"Please tell me what to search for.",
-		"I have a lot of data, please specify your keyword."
+		"Nobody is perfect, atleast I tried.",
+		"Don't have anything related to this."
 	]
 	temp = getRandom(ReqMessages)
 	return response_plain_text(
@@ -486,47 +467,15 @@ def response_plain_text(output, endsession, attributes, title, cardContent, repr
 		'sessionAttributes' : attributes
 	}
 
-def response_ssml(output, endsession, attributes, title, cardContent, repromt = ""):
-	print(output + "\n")
-	""" create a simple json plain text response  """
-	return {
-		'version'   : '1.0',
-		'response'  : {
-			'shouldEndSession'  : endsession,
-			'outputSpeech'  : {
-				'type'      : 'SSML',
-				'ssml'      : '<speak> ' + output + '</speak>'
-			},
-			'card' : {
-				'type' : 'Simple',
-				'title' : title,
-				'content' : cardContent    
-			},
-			'reprompt' : {
-				'outputSpeech' : {
-					'type' : 'PlainText',
-					'text' : repromt
-				}
-			}
-		},
-		'sessionAttributes' : attributes
-	}
-
 
 def do_help():
 	Messages = [
-		"You can say 'what is trending' or " + 
-		"You can ask for some 'top charts' or " + 
-		"You can ask for 'topics related to some keyword' of your likes."
+		"You can say 'what is trending'.",
+		"You can ask for some top charts.",
+		"You can ask for related topics.",
+		"You can get to know about some trends around the globe."
 	]
-	return response_plain_text(
-			getRandom(Messages),
-			True,
-			{},
-			"My Features",
-			"1. Trending Topics\n2. Top Charts\n3. Related Topics\n4. Suggestions to look for\n",
-			"What can I do for you?"
-		)
+	return response_plain_text(getRandom(Messages), True, {}, "Bye!", "What can I do for you?")
 
 def do_stop(attributes):
 	attributes['INDEX'] = {}
@@ -577,7 +526,7 @@ def getCid(intent, keyword):
 			return 'books', slot
 		elif slot == 'authors' or slot == 'writers':
 			return 'authors', slot
-		elif slot == 'songs' or slot == 'pop' or slot == 'music':
+		elif slot == 'songs' or slot == 'pop':
 			return 'songs', slot
 		elif slot == 'dogs' or slot == 'dogbreeds':
 			return 'dog_breeds', slot
@@ -585,10 +534,8 @@ def getCid(intent, keyword):
 			return 'athletes', slot
 		elif slot == 'people' :
 			return 'people', slot
-		return -1, slot
-	return -1, -1
-
-
+		else :
+			return -1, -1
 
 
 def getRandomKeyword():
