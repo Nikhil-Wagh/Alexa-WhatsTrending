@@ -104,7 +104,7 @@ def GetTrendingTopics(request, attributes):
 		# outputSpeech = "Here are some trending topics ... "
 		# cardContent = ""
 		# extra = ""
-		length = 2
+		length = 3
 
 		titles = []
 		extra = ""
@@ -156,7 +156,7 @@ def GetTrendingTopics(request, attributes):
 		"""
 		return response_ssml(
 				temp + outputSpeech,
-				False,
+				True,
 				attributes,
 				"Trending Topics",
 				cardContent,
@@ -266,7 +266,7 @@ def GetTopCharts(request, i = 0):
 		temp = getRandom(TopChartsMessages)
 		return response_plain_text(
 				temp + keyword + " ... " + outputSpeech,
-				False,
+				True,
 				{},
 				"Top charts of " + keyword,
 				cardContent,
@@ -289,7 +289,7 @@ def getKeywordError(keyword):
 	temp = getRandom(ErrorMessages)
 	return response_plain_text(
 			temp,
-			False,
+			True,
 			{},
 			"Keyword error",
 			"Cannot find the keyword you searched for.",
@@ -322,7 +322,7 @@ def GetSuggestionsIntent(request):
 	]
 	temp = getRandom(SuggestionMessages)
 	return response_plain_text(
-			temp + outputSpeech,
+			temp + outputSpeech + " For example, you can say 'give me top charts of games'.",
 			False,
 			{},
 			"Suggestions",
@@ -390,7 +390,7 @@ def GetRelatedTopics(request):
 			temp = getRandom(AnswerMessages)
 			return response_plain_text(
 					temp + keyword + " ... " + outputSpeech,
-					False,
+					True,
 					{},
 					"Hot topics related to - " + keyword,
 					cardContent,
@@ -515,13 +515,14 @@ def response_ssml(output, endsession, attributes, title, cardContent, repromt = 
 
 def do_help():
 	Messages = [
-		"You can say 'what is trending' or " + 
-		"You can ask for some 'top charts' or " + 
-		"You can ask for 'topics related to some keyword' of your likes."
+		"You can say 'what is trending', and I will tell you some of the viral topics.", 
+		"You can say 'tell me who is in the top charts of actors', and I will tell you the top charts of actors. Or you can also change the list of top charts.", 
+		"You can ask for 'topics related to some keyword' of your likes.",
+		"You can ask for the 'topics which I support in the Top Charts', since they are limited."
 	]
 	return response_plain_text(
-			getRandom(Messages),
-			True,
+			getRandom(Messages) + " What can I do for you?",
+			False,
 			{},
 			"My Features",
 			"1. Trending Topics\n2. Top Charts\n3. Related Topics\n4. Suggestions to look for\n",
